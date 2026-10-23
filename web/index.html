@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>純程式化向量卡通角色互動測試器 (Procedural Vector Character Playground)</title>
+  <style>
+    :root {
+      --bg: #F7F4EC;
+      --card-bg: #FFFFFF;
+      --navy: #263A59;
+      --text-muted: #64748B;
+      --primary: #3E8EDE;
+      --accent: #F26E38;
+      --border: #E2E8F0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--navy);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    p.sub {
+      color: var(--text-muted);
+      font-size: 15px;
+    }
+    .layout {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 32px;
+      max-width: 1080px;
+      width: 100%;
+      justify-content: center;
+    }
+    .viewport-card {
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(38, 58, 89, 0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+    canvas {
+      background: #FAF7F0;
+      border-radius: 16px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.04);
+      width: 480px;
+      height: 540px;
+    }
+    .controls-card {
+      flex: 1;
+      min-width: 340px;
+      max-width: 480px;
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(38, 58, 89, 0.08);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .char-select {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .char-btn {
+      padding: 12px 8px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: #F8FAFC;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--navy);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .char-btn.active {
+      border-color: var(--primary);
+      background: #EFF6FF;
+      color: var(--primary);
+      box-shadow: 0 4px 12px rgba(62, 142, 222, 0.18);
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: var(--primary);
+    }
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .toggle-btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: #F8FAFC;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toggle-btn.active {
+      background: #ECFDF5;
+      border-color: #10B981;
+      color: #065F46;
+    }
+    .toggle-btn.active.orange {
+      background: #FFF7ED;
+      border-color: #F97316;
+      color: #9A3412;
+    }
+    .badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.06);
+    }
+    footer {
+      margin-top: 36px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Procedural Vector Cartoon Character Playground</h1>
+    <p class="sub">純程式碼向量繪圖・語音連動嘴型・呼吸律動・表情動作即時調試</p>
+  </header>
+
+  <div class="layout">
+    <div class="viewport-card">
+      <canvas id="canvas" width="960" height="1080"></canvas>
+    </div>
+
+    <div class="controls-card">
+      <div>
+        <div class="section-title">選擇角色 (Character)</div>
+        <div class="char-select">
+          <button class="char-btn active" onclick="setChar('doctor')">AI 小博士</button>
+          <button class="char-btn" onclick="setChar('atian')">阿天 (導遊)</button>
+          <button class="char-btn" onclick="setChar('xiaolu')">小綠 (導覽員)</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">動態即時參數 (Dynamic Controls)</div>
+        <div class="control-group">
+          <div class="control-header">
+            <span>語音音量 / 開嘴 (mouth)</span>
+            <span id="mouth-val" class="badge">0.00</span>
+          </div>
+          <input type="range" id="slider-mouth" min="0" max="1" step="0.02" value="0">
+        </div>
+
+        <div class="control-group" style="margin-top: 14px;">
+          <div class="control-header">
+            <span>視線偏移 (look: 左 ← → 右)</span>
+            <span id="look-val" class="badge">0.00</span>
+          </div>
+          <input type="range" id="slider-look" min="-1" max="1" step="0.05" value="0">
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">動作與情緒狀態 (States & Gestures)</div>
+        <div class="toggle-grid">
+          <button id="btn-wave" class="toggle-btn" onclick="toggleState('wave')">
+            <span>揮手 (Wave)</span>
+            <span class="badge" id="badge-wave">OFF</span>
+          </button>
+          <button id="btn-point" class="toggle-btn" onclick="toggleState('point')">
+            <span>指物 (Point)</span>
+            <span class="badge" id="badge-point">OFF</span>
+          </button>
+          <button id="btn-happy" class="toggle-btn active" onclick="toggleState('happy')">
+            <span>微笑 (Happy)</span>
+            <span class="badge" id="badge-happy">ON</span>
+          </button>
+          <button id="btn-sweat" class="toggle-btn orange" onclick="toggleState('sweat')">
+            <span>流汗 (Sweat)</span>
+            <span class="badge" id="badge-sweat">OFF</span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">自動對嘴模擬 (Auto Talk Simulation)</div>
+        <button id="btn-autotalk" class="toggle-btn" style="width: 100%;" onclick="toggleAutoTalk()">
+          <span>模擬語音輸入連續說話</span>
+          <span class="badge" id="badge-autotalk">OFF</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Made with Procedural Vector Cartoon Character Craft • 100% Pure Code, No External Assets
+  </footer>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Global State
+    let currentChar = 'doctor';
+    let state = {
+      wave: false,
+      point: false,
+      happy: true,
+      sweat: false,
+      mouth: 0.0,
+      look: 0.0,
+      autoTalk: false
+    };
+
+    // Color definitions
+    const C = {
+      navy: '#263A59',
+      white: '#FFFFFF',
+      bg: '#F7F4EC',
+      skin: '#FFDBB8',
+      skinWarm: '#F5CCAB',
+      hairDark: '#332938',
+      hairBrown: '#3D2E24',
+      coat: '#FAFAFF',
+      coatShadow: '#CCD6E6',
+      orange: '#FF8A66',
+      yellow: '#FFD64F',
+      pink: '#FFA8B3',
+      blue: '#5999EB',
+      red: '#E65959',
+      teal: '#3EAAA0',
+      hatKhaki: '#DCCD9E',
+      vestGreen: '#428F61',
+      vestDark: '#2E6B47',
+      pantsKhaki: '#C2A885',
+      boots: '#6B4229'
+    };
+
+    function setChar(name) {
+      currentChar = name;
+      document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    function toggleState(key) {
+      state[key] = !state[key];
+      const btn = document.getElementById(`btn-${key}`);
+      const badge = document.getElementById(`badge-${key}`);
+      btn.classList.toggle('active', state[key]);
+      badge.textContent = state[key] ? 'ON' : 'OFF';
+    }
+
+    function toggleAutoTalk() {
+      state.autoTalk = !state.autoTalk;
+      const btn = document.getElementById('btn-autotalk');
+      const badge = document.getElementById('badge-autotalk');
+      btn.classList.toggle('active', state.autoTalk);
+      badge.textContent = state.autoTalk ? 'ON' : 'OFF';
+    }
+
+    // Sliders
+    document.getElementById('slider-mouth').addEventListener('input', e => {
+      state.mouth = parseFloat(e.target.value);
+      document.getElementById('mouth-val').textContent = state.mouth.toFixed(2);
+    });
+    document.getElementById('slider-look').addEventListener('input', e => {
+      state.look = parseFloat(e.target.value);
+      document.getElementById('look-val').textContent = state.look.toFixed(2);
+    });
+
+    // Helper: Rounded Rectangle
+    function rrect(ctx, x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function fillstroke(ctx, fill, stroke = C.navy, lw = 5) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = lw;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    function drawStar(ctx, x, y, r, fill = C.yellow, rot = 0) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const rr = (i % 2 === 0) ? r : r * 0.45;
+        const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+        const px = Math.cos(ang) * rr;
+        const py = Math.sin(ang) * rr;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      fillstroke(ctx, fill, C.navy, 3);
+      ctx.restore();
+    }
+
+    // Render Character: AI 小博士
+    function drawDoctor(ctx, x, y, s, t, mouth, wave, point, sweat, happy, look) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(s, s);
+
+      // Shadow
+      ctx.save();
+      ctx.scale(1, 0.18);
+      ctx.beginPath();
+      ctx.arc(0, 250 / 0.18, 100, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fill();
+      ctx.restore();
+
+      // Bobbing
+      const bob = -Math.abs(Math.sin(t * 4.2)) * 12;
+      ctx.translate(0, bob + 200);
+      ctx.rotate(Math.sin(t * 2.1) * 0.05);
+      ctx.translate(0, -200);
+
+      // Legs
+      for (let sd of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sd * 26, 200); ctx.lineTo(sd * 28, 236);
+        ctx.strokeStyle = C.navy; ctx.lineWidth = 20; ctx.stroke();
+        rrect(ctx, sd * 28 - 22 + sd * 6, 228, 44, 20, 10);
+        fillstroke(ctx, '#F27359', C.navy, 4);
+      }
+
+      // Lab Coat
+      ctx.beginPath();
+      ctx.moveTo(-60, 86);
+      ctx.bezierCurveTo(-76, 150, -84, 192, -80, 212);
+      ctx.lineTo(80, 212);
+      ctx.bezierCurveTo(84, 192, 76, 150, 60, 86);
+      ctx.bezierCurveTo(30, 74, -30, 74, -60, 86);
+      ctx.closePath();
+      fillstroke(ctx, C.coat, C.navy, 5);
+
+      // Shirt + Tie
+      ctx.beginPath();
+      ctx.moveTo(-22, 82); ctx.lineTo(0, 140); ctx.lineTo(22, 82); ctx.closePath();
+      fillstroke(ctx, '#8CC0F2', C.navy, 4);
+
+      ctx.beginPath();
+      ctx.moveTo(-7, 92); ctx.lineTo(7, 92); ctx.lineTo(10, 128); ctx.lineTo(0, 140); ctx.lineTo(-10, 128); ctx.closePath();
+      fillstroke(ctx, C.orange, C.navy, 3);
+
+      // Pocket & Pens
+      rrect(ctx, 26, 156, 36, 30, 5);
+      fillstroke(ctx, C.coatShadow, C.navy, 3);
+      ctx.beginPath(); ctx.moveTo(36, 150); ctx.lineTo(36, 170); ctx.strokeStyle = C.blue; ctx.lineWidth = 5; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(48, 150); ctx.lineTo(48, 168); ctx.strokeStyle = C.red; ctx.lineWidth = 5; ctx.stroke();
+
+      // Arms
+      function arm(sx, sy, ex, ey) {
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.strokeStyle = C.navy; ctx.lineWidth = 26; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.strokeStyle = C.coat; ctx.lineWidth = 17; ctx.stroke();
+        ctx.beginPath(); ctx.arc(ex, ey, 13, 0, Math.PI * 2); fillstroke(ctx, C.skin, C.navy, 4);
+      }
+
+      if (wave) {
+        const ang = -2.3 + 0.4 * Math.sin(t * 9);
+        arm(-64, 108, -64 + Math.cos(ang) * 72, 108 + Math.sin(ang) * 72);
+      } else {
+        arm(-64, 108, -84, 172);
+      }
+
+      if (point) {
+        const ex = 130, ey = 40 + Math.sin(t * 3) * 6;
+        arm(64, 108, ex, ey);
+        ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + 70, ey - 60); ctx.strokeStyle = '#8C542E'; ctx.lineWidth = 7; ctx.stroke();
+        drawStar(ctx, ex + 76, ey - 66, 16, C.yellow, t * 2);
+      } else {
+        arm(64, 108, 86, 172);
+      }
+
+      // Head & Ears
+      for (let sd of [-1, 1]) {
+        ctx.beginPath(); ctx.arc(sd * 86, 0, 16, 0, Math.PI * 2); fillstroke(ctx, C.skin, C.navy, 4);
+      }
+      ctx.beginPath(); ctx.arc(0, -10, 86, 0, Math.PI * 2); fillstroke(ctx, C.skin, C.navy, 5);
+
+      // Hair
+      ctx.beginPath();
+      ctx.moveTo(-90, -20);
+      const tufts = [[-92, -70], [-60, -104], [-20, -112], [20, -112], [60, -104], [92, -70]];
+      for (let [hx, hy] of tufts) {
+        ctx.bezierCurveTo(hx - 10, hy - 18, hx + 18, hy - 22, hx + 14, hy);
+      }
+      ctx.lineTo(90, -20);
+      ctx.bezierCurveTo(70, -60, 40, -66, 0, -62);
+      ctx.bezierCurveTo(-40, -66, -70, -60, -90, -20);
+      ctx.closePath();
+      fillstroke(ctx, C.hairDark, C.navy, 5);
+
+      // Antenna Tuft
+      ctx.beginPath();
+      ctx.moveTo(0, -112);
+      ctx.bezierCurveTo(10, -150, 40, -150, 34, -128 + Math.sin(t * 5) * 4);
+      ctx.strokeStyle = C.hairDark; ctx.lineWidth = 8; ctx.stroke();
+
+      // Glasses & Eyes
+      const blink = (t % 3.1) < 0.13;
+      for (let ex_ of [-34, 34]) {
+        ctx.save();
+        ctx.translate(ex_ + look * 6, -2);
+        ctx.scale(1, blink ? 0.12 : 1);
+        ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fillStyle = C.navy; ctx.fill();
+        if (!blink) {
+          ctx.beginPath(); ctx.arc(4, -5, 4.5, 0, Math.PI * 2); ctx.fillStyle = '#FFF'; ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.beginPath(); ctx.arc(ex_, -2, 27, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(200, 235, 255, 0.25)'; ctx.fill();
+        ctx.strokeStyle = C.navy; ctx.lineWidth = 5; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(-8, -4); ctx.quadraticCurveTo(0, -12, 8, -4); ctx.lineWidth = 5; ctx.strokeStyle = C.navy; ctx.stroke();
+
+      // Cheeks
+      for (let ex_ of [-54, 54]) {
+        ctx.beginPath(); ctx.arc(ex_, 32, 11, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 168, 179, 0.75)'; ctx.fill();
+      }
+
+      // Mouth
+      if (mouth > 0.08) {
+        ctx.save();
+        ctx.translate(0, 44);
+        ctx.scale(1, (4 + 18 * mouth) / 13);
+        ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2);
+        ctx.fillStyle = C.navy; ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        if (happy) {
+          ctx.arc(0, 34, 15, 0.15 * Math.PI, 0.85 * Math.PI);
+        } else {
+          ctx.arc(0, 56, 12, 1.2 * Math.PI, 1.8 * Math.PI);
+        }
+        ctx.lineWidth = 5; ctx.strokeStyle = C.navy; ctx.stroke();
+      }
+
+      // Sweat
+      if (sweat) {
+        const dy = (t * 40) % 30;
+        ctx.beginPath();
+        ctx.moveTo(92, -40 + dy);
+        ctx.bezierCurveTo(76, -12 + dy, 80, 0 + dy, 92, 0 + dy);
+        ctx.bezierCurveTo(104, 0 + dy, 108, -12 + dy, 92, -40 + dy);
+        fillstroke(ctx, '#8CCDFE', C.navy, 3);
+      }
+
+      ctx.restore();
+    }
+
+    // Render loop
+    function loop(timeMs) {
+      const t = timeMs / 1000.0;
+
+      // Auto talk oscillator
+      let m = state.mouth;
+      if (state.autoTalk) {
+        m = Math.max(0, Math.sin(t * 12) * 0.85);
+        document.getElementById('mouth-val').textContent = m.toFixed(2);
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (currentChar === 'doctor') {
+        drawDoctor(ctx, canvas.width / 2, canvas.height / 2 + 50, 1.15, t,
+                   m, state.wave, state.point, state.sweat, state.happy, state.look);
+      } else {
+        // Fallback or render doctor
+        drawDoctor(ctx, canvas.width / 2, canvas.height / 2 + 50, 1.15, t,
+                   m, state.wave, state.point, state.sweat, state.happy, state.look);
+      }
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
